@@ -44,6 +44,8 @@ class Grabber(LiveWire):
             List with pairs of anchors coordinates and path sorted by their ordering.
         """
         assert mask.dtype == np.uint8
+        mask = np.swapaxes(mask, axis1=0, axis2=1)
+
         ctr, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         approx = cv2.approxPolyDP(ctr[0], self.epsilon, closed=True)
 
@@ -57,15 +59,15 @@ class Grabber(LiveWire):
         for _ in range(len(ctr)):
             if ptidx < len(approx) and ctr[idx, 0] == approx[ptidx, 0] and ctr[idx, 1] == approx[ptidx, 1]:
                 ptidx += 1
-            splits[ptidx - 1].append((ctr[idx, 1], ctr[idx, 0]))  # swapping to (y, x)
+            splits[ptidx - 1].append(ctr[idx, 0] * self.size[1] + ctr[idx, 1])  # swapping to (y, x)
             idx = (idx + 1) % len(ctr)
 
         paths = []
         for anchor, segment in zip(approx, splits):
-            paths.append(Path((anchor[1], anchor[0]),  np.array(segment)))
+            paths.append(Path(tuple(anchor.tolist()),  np.array(segment)))
 
-        self.costs[ctr] = 0
-        self.labels[ctr] = True
+        self.costs[ctr[:, 0], ctr[:, 1]] = 0
+        self.labels[ctr[:, 0], ctr[:, 1]] = True
 
         return paths
 
@@ -85,14 +87,14 @@ class Grabber(LiveWire):
         """
         return int(self.size[1] * y + x)
 
-    def _find_triplet(self, position: Tuple[int, int]) -> Optional[Tuple[Path, Path, Path]]:
+    def _find_triplet(self, position: Tuple[int, int]) -> Optional[Tuple[Path, Path, Path, int]]:
         """
         Finds data structure with the same position and its neighbors.
         """
         index = -1
         for i, v in enumerate(self.paths):
             if v.coords[0] == position[0] and v.coords[1] == position[1]:
-                index = 1
+                index = i
                 break
 
         if index == -1:
@@ -101,9 +103,9 @@ class Grabber(LiveWire):
         previous = self.paths[index - 1]
         middle = self.paths[index]
         next = self.paths[(index + 1) % len(self.paths)]
-        return previous, middle, next
+        return previous, middle, next, index
 
-    def select(self, position: Tuple[int, int]) -> None:
+    def select(self, position: Tuple[int, int]) -> bool:
         """
         Selects an anchor point.
 
@@ -116,20 +118,22 @@ class Grabber(LiveWire):
 
         pack = self._find_triplet(position)
         if pack:
-            self.previous, self.middle, self.next = pack
+            self.previous, self.middle, self.next, _ = pack
+            return True
+        return False
 
     def _reset(self, path: np.ndarray) -> None:
         """
-        FIlls IFT's costs, labels and predecessor map with initilization values.
+        Fills IFT's costs, labels and predecessor map with initilization values.
 
         Parameters
         ----------
         path: array_like
             Array of coordinates.
         """
-        self.costs[path] = np.finfo('d').max
-        self.labels[path] = False
-        self.preds[path] = -1
+        self.costs.flat[path] = np.finfo('d').max
+        self.labels.flat[path] = False
+        self.preds.flat[path] = -1
 
     def _draw(self, path: np.ndarray) -> None:
         """
@@ -140,8 +144,16 @@ class Grabber(LiveWire):
         path: array_like
             Array of coordinates.
         """
-        self.costs[path] = 0
-        self.labels[path] = True
+        self.costs.flat[path] = 0
+        self.labels.flat[path] = True
+
+    def _opt_path(self, src: Path, dst: Path) -> Optional[np.ndarray]:
+        src = self._to_index(*src.coords)
+        dst = self._to_index(*dst.coords)
+        self.costs.flat[dst] = np.finfo('d').max
+        self.labels.flat[dst] = False
+        self.preds.flat[dst] = -1
+        return super()._opt_path(src, dst)
 
     def drag(self, position: Tuple[int, int]) -> None:
         """
@@ -160,14 +172,13 @@ class Grabber(LiveWire):
         if not (0 <= y < self.size[0] and 0 <= x < self.size[1]):
             return
 
-        index = self._to_index(y, x)
         self.middle.coords = y, x
 
         self._reset(self.previous.path)
-        self.previous.path = self._opt_path(self._to_index(*self.previous.coords), index)
+        self.previous.path = self._opt_path(self.previous, self.middle)
 
         self._reset(self.middle.path)
-        self.middle.path = self._opt_path(index, self._to_index(*self.next.coords))
+        self.middle.path = self._opt_path(self.middle, self.next)
 
     def confirm(self) -> None:
         """
@@ -214,10 +225,10 @@ class Grabber(LiveWire):
         if pack is None:
             raise ValueError('`position` not found.')
 
-        previous, current, next = pack
+        previous, current, next, index = pack
 
         self._reset(previous.path)
         self._reset(current.path)
-        del current
+        self.paths.pop(index)
 
-        previous.path = self._opt_path(self._to_index(*previous.coords), self._to_index(*next.coords))
+        previous.path = self._opt_path(previous, next)
