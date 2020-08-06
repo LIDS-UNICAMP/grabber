@@ -4,9 +4,6 @@ from typing import Optional, Tuple, List
 import cv2
 from dataclasses import dataclass
 
-# TODO
-#  - assert contour direction (is this necessary?)
-
 
 @dataclass
 class Path:
@@ -147,9 +144,9 @@ class Grabber(LiveWire):
         self.costs.flat[path] = 0
         self.labels.flat[path] = True
 
-    def _opt_path(self, src: Path, dst: Path) -> Optional[np.ndarray]:
-        src = self._to_index(*src.coords)
-        dst = self._to_index(*dst.coords)
+    def _opt_path(self, src: Tuple[int, int], dst: Tuple[int, int]) -> Optional[np.ndarray]:
+        src = self._to_index(*src)
+        dst = self._to_index(*dst)
         self.costs.flat[dst] = np.finfo('d').max
         self.labels.flat[dst] = False
         self.preds.flat[dst] = -1
@@ -168,17 +165,26 @@ class Grabber(LiveWire):
             return
 
         self._assert_position(position)
-        y, x = position
-        if not (0 <= y < self.size[0] and 0 <= x < self.size[1]):
+        if not (0 <= position[0] < self.size[0] and 0 <= position[1] < self.size[1]):
             return
 
-        self.middle.coords = y, x
-
         self._reset(self.previous.path)
-        self.previous.path = self._opt_path(self.previous, self.middle)
+        previous_path = self._opt_path(self.previous.coords, position)
 
         self._reset(self.middle.path)
-        self.middle.path = self._opt_path(self.middle, self.next)
+        middle_path = self._opt_path(position, self.next.coords)
+
+        if middle_path is None or previous_path is None:
+            if previous_path is not None:
+                self._reset(previous_path)
+            if middle_path is not None:
+                self._reset(middle_path)
+            self._draw(self.previous.path)
+            self._draw(self.middle.path)
+        else:
+            self.middle.coords = position
+            self.previous.path = previous_path
+            self.middle.path = middle_path
 
     def confirm(self) -> None:
         """
@@ -188,7 +194,7 @@ class Grabber(LiveWire):
         self.previous = None
         self.next = None
 
-    def add(self, position: Tuple[int, int]) -> None:
+    def add(self, position: Tuple[int, int]) -> int:
         """
         Split contour segment in the desired position, creating an additional anchor.
 
@@ -196,17 +202,24 @@ class Grabber(LiveWire):
         ----------
         position: Tuple[int, int]
             Coordinate (y, x) to insert anchor.
+
+        Returns
+        -------
+        int
+            Indexing of added anchor.
         """
         if not isinstance(position, tuple):
             raise TypeError('`position` must be a tuple.')
 
+        new_index = self._to_index(*position)
+
         for i, path in enumerate(self.paths):
-            for j, coords in enumerate(path.path):
-                if coords[0] == position[0] and coords[1] == position[1]:
+            for j, index in enumerate(path.path):
+                if index == new_index:
                     new_path = Path(position, path.path[j:])
                     path.path = path.path[:j]
                     self.paths.insert(i + 1, new_path)
-                    return
+                    return i + 1
 
         raise ValueError('`position` does not belong to contour.')
 
@@ -231,4 +244,4 @@ class Grabber(LiveWire):
         self._reset(current.path)
         self.paths.pop(index)
 
-        previous.path = self._opt_path(previous, next)
+        previous.path = self._opt_path(previous.coords, next.coords)

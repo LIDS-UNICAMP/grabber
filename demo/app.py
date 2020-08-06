@@ -2,15 +2,11 @@ import sys
 import napari
 import numpy as np
 from src.grabber import Grabber
+from src.mypoints import add_my_points
 import cv2
 from magicgui import magicgui
 from qtpy.QtWidgets import QDoubleSpinBox
 
-
-# TODO
-#  - roll back path when not found
-#  - click addition
-#  -
 
 def main(args):
 
@@ -24,18 +20,15 @@ def main(args):
         viewer = napari.view_image(image)
 
         grabber = Grabber(image=cv2.cvtColor(image, cv2.COLOR_RGB2LAB),
-                          mask=mask, sigma=default_sigma)
+                          mask=mask, sigma=default_sigma, epsilon=50)
 
         label = viewer.add_labels(grabber.contour,
                                   color={1: 'cyan'},
                                   name='contour', opacity=1.0)
 
-        points = viewer.add_points(np.array([p.coords for p in grabber.paths]),
-                                   size=5, face_color='yellow', edge_color='black')
+        points = add_my_points(viewer, grabber, np.array([p.coords for p in grabber.paths]),
+                               size=5, name='anchors', face_color='yellow', edge_color='black')
         points.mode = 'select'
-
-        def valid(coords):
-            return 0 <= coords[0] < image.shape[0] and 0 <= coords[1] < image.shape[1]
 
         def find_closest(coords):
             minimum = None
@@ -64,9 +57,6 @@ def main(args):
                     yield
                 # mouse release
                 grabber.confirm()
-
-            elif layer.mode == 'add':
-                print(layer.selected_data)
 
         @magicgui(auto_call=True,
                   sigma={'widget_type': QDoubleSpinBox, 'maximum': 255, 'minimum': 0.01, 'singleStep': 5.0})
