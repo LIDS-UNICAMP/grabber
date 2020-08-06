@@ -37,29 +37,36 @@ def main(args):
         def valid(coords):
             return 0 <= coords[0] < image.shape[0] and 0 <= coords[1] < image.shape[1]
 
+        def find_closest(coords):
+            minimum = None
+            min_dist = 1e23
+            for p in grabber.paths:
+                dist = (coords[0] - p.coords[0]) ** 2 + (coords[1] - p.coords[1]) ** 2
+                if dist < min_dist:
+                    min_dist = dist
+                    minimum = p.coords
+            return minimum
+
         @points.mouse_drag_callbacks.append
         def mouse_click(layer, event):
-            coords = round(layer.position[0]), round(layer.position[1])
-            if not valid(coords) or not grabber.contour[coords]:
-                print('miss click')
-                return
-
-            # mouse press
-            if not grabber.select(coords):
-                return
-            yield
-
-            # mouse move
-            while event.type == 'mouse_move':
-                coords = round(layer.position[0]), round(layer.position[1])
-                grabber.drag(coords)
-                label.data = grabber.contour
+            if layer.mode == 'select':
+                if len(layer.selected_data) != 1:
+                    return
+                # mouse press
+                coords = find_closest(layer.coordinates)
+                grabber.select(coords)
                 yield
+                # mouse move
+                while event.type == 'mouse_move':
+                    coords = round(layer.position[0]), round(layer.position[1])
+                    grabber.drag(coords)
+                    label.data = grabber.contour
+                    yield
+                # mouse release
+                grabber.confirm()
 
-            # mouse release
-            grabber.confirm()
-
-        # FIXME points.mouse_drag_callbacks.insert(0, mouse_click)
+            elif layer.mode == 'add':
+                print(layer.selected_data)
 
         @magicgui(auto_call=True,
                   sigma={'widget_type': QDoubleSpinBox, 'maximum': 255, 'minimum': 0.01, 'singleStep': 5.0})
@@ -72,7 +79,7 @@ def main(args):
 
         @viewer.bind_key('d')
         def remove_points(viewer):
-            for i in points.selected_data:
+            for i in sorted(list(points.selected_data), reverse=True):
                 pt = grabber.paths[i].coords
                 grabber.remove(pt)
             label.data = grabber.contour
