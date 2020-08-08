@@ -16,14 +16,17 @@ def main(args):
     mask = cv2.imread(args[2])
     mask = (mask.max(axis=2) > mask.mean()).astype(np.uint8)
 
-    default_sigma = 50.0
+    default_sigma = 30.0
     points_size = 5
+    epsilon = 25
+
+    lab_im = cv2.cvtColor(image, cv2.COLOR_RGB2LAB)
+    lab_im = cv2.bilateralFilter(lab_im, 7, 25, -1)
+    grabber = Grabber(image=lab_im,
+                      mask=mask, sigma=default_sigma, epsilon=epsilon)
 
     with napari.gui_qt():
         viewer = napari.view_image(image)
-
-        grabber = Grabber(image=cv2.cvtColor(image, cv2.COLOR_RGB2LAB),
-                          mask=mask, sigma=default_sigma, epsilon=50)
 
         label = viewer.add_labels(grabber.contour,
                                   color={1: 'cyan'},
