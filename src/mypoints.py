@@ -7,8 +7,10 @@ from src.grabber import Grabber
 class MyPoints(Points):
     def add(self, coord):
         coord = round(coord[0]), round(coord[1])
-        if self.metadata['grabber'].contour[coord]:
-            index = self.metadata['grabber'].add(coord)
+        grabber = self.metadata['grabber']
+        y, x = grabber.costs.shape
+        if 0 <= coord[0] < y and 0 <= coord[1] < x and grabber.contour[coord]:
+            index = grabber.add(coord)
             self.data = np.insert(self.data, index, np.atleast_2d(coord), axis=0)
 
 
@@ -17,4 +19,21 @@ def add_my_points(viewer: Viewer, grabber: Grabber, *args, **kwargs) -> MyPoints
     points.metadata['grabber'] = grabber
     viewer.add_layer(points)
     return points
+
+
+@MyPoints.bind_key('Space')
+def hold_to_pan_zoom(layer):
+    """Hold to pan and zoom in the viewer."""
+    if layer.mode != "pan_zoom":
+        # on key press
+        prev_mode = layer.mode
+        prev_selected = layer.selected_data.copy()
+        layer.mode = "pan_zoom"
+
+        yield
+
+        # on key release
+        layer.mode = prev_mode
+        layer.selected_data = prev_selected
+        layer._set_highlight()
 

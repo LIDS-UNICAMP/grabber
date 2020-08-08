@@ -44,9 +44,9 @@ class Grabber(LiveWire):
         mask = np.swapaxes(mask, axis1=0, axis2=1)
 
         ctr, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        approx = cv2.approxPolyDP(ctr[0], self.epsilon, closed=True)
+        approx = cv2.approxPolyDP(ctr[-1], self.epsilon, closed=True)
 
-        ctr = np.squeeze(np.array(ctr[0]), axis=1)
+        ctr = np.squeeze(np.array(ctr[-1]), axis=1)
         approx = np.squeeze(np.array(approx), axis=1)
 
         idx = np.where((ctr == approx[0]).all(axis=1))[0].item()
@@ -150,7 +150,7 @@ class Grabber(LiveWire):
         self.costs.flat[dst] = np.finfo('d').max
         self.labels.flat[dst] = False
         self.preds.flat[dst] = -1
-        return super()._opt_path(src, dst)
+        return super()._opt_path(src, dst)[::-1]
 
     def drag(self, position: Tuple[int, int]) -> None:
         """
@@ -169,9 +169,8 @@ class Grabber(LiveWire):
             return
 
         self._reset(self.previous.path)
-        previous_path = self._opt_path(self.previous.coords, position)
-
         self._reset(self.middle.path)
+        previous_path = self._opt_path(self.previous.coords, position)
         middle_path = self._opt_path(position, self.next.coords)
 
         if middle_path is None or previous_path is None:

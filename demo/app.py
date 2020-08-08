@@ -1,20 +1,23 @@
 import sys
 import napari
 import numpy as np
-from src.grabber import Grabber
-from src.mypoints import add_my_points
 import cv2
 from magicgui import magicgui
 from qtpy.QtWidgets import QDoubleSpinBox
+
+sys.path.insert(0, '.')
+from src.grabber import Grabber
+from src.mypoints import add_my_points
 
 
 def main(args):
 
     image = cv2.cvtColor(cv2.imread(args[1]), cv2.COLOR_BGR2RGB)
     mask = cv2.imread(args[2])
-    mask = (mask[:, :, 0] > 127).astype(np.uint8)
+    mask = (mask.max(axis=2) > mask.mean()).astype(np.uint8)
 
-    default_sigma = 5.0
+    default_sigma = 50.0
+    points_size = 5
 
     with napari.gui_qt():
         viewer = napari.view_image(image)
@@ -27,7 +30,7 @@ def main(args):
                                   name='contour', opacity=1.0)
 
         points = add_my_points(viewer, grabber, np.array([p.coords for p in grabber.paths]),
-                               size=5, name='anchors', face_color='yellow', edge_color='black')
+                               size=points_size, name='anchors', face_color='yellow', edge_color='black')
         points.mode = 'select'
 
         def find_closest(coords):
@@ -38,25 +41,35 @@ def main(args):
                 if dist < min_dist:
                     min_dist = dist
                     minimum = p.coords
-            return minimum
+            return minimum, np.sqrt(min_dist)
 
         @points.mouse_drag_callbacks.append
         def mouse_click(layer, event):
             if layer.mode == 'select':
-                if len(layer.selected_data) != 1:
+                if len(layer.selected_data) > 1:
                     return
                 # mouse press
-                coords = find_closest(layer.coordinates)
+                coords, _ = find_closest(layer.coordinates)
                 grabber.select(coords)
                 yield
                 # mouse move
-                while event.type == 'mouse_move':
+                while event.type == 'mouse_move' and len(layer.selected_data) == 1:
                     coords = round(layer.position[0]), round(layer.position[1])
                     grabber.drag(coords)
                     label.data = grabber.contour
                     yield
                 # mouse release
                 grabber.confirm()
+                layer.selected_data = set()
+
+        @points.bind_key('Backspace')
+        @points.bind_key('Delete')
+        def remove_points(layer):
+            for i in sorted(list(layer.selected_data), reverse=True):
+                pt = grabber.paths[i].coords
+                grabber.remove(pt)
+            label.data = grabber.contour
+            layer.remove_selected()
 
         @magicgui(auto_call=True,
                   sigma={'widget_type': QDoubleSpinBox, 'maximum': 255, 'minimum': 0.01, 'singleStep': 5.0})
@@ -66,14 +79,6 @@ def main(args):
         sigma_box = update_sigma.Gui()
         viewer.window.add_dock_widget(sigma_box, area='left')
         viewer.layers.events.changed.connect(lambda x: sigma_box.refresh_choices())
-
-        @viewer.bind_key('d')
-        def remove_points(viewer):
-            for i in sorted(list(points.selected_data), reverse=True):
-                pt = grabber.paths[i].coords
-                grabber.remove(pt)
-            label.data = grabber.contour
-            points.remove_selected()
 
 
 if __name__ == '__main__':
