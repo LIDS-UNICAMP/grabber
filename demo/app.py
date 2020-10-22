@@ -18,12 +18,12 @@ def main(args):
 
     default_sigma = 30.0
     points_size = 5
-    epsilon = 25
+    default_epsilon = 25
 
     lab_im = cv2.cvtColor(image, cv2.COLOR_RGB2LAB)
     lab_im = cv2.bilateralFilter(lab_im, 7, 25, -1)
     grabber = Grabber(image=lab_im,
-                      mask=mask, sigma=default_sigma, epsilon=epsilon)
+                      mask=mask, sigma=default_sigma, epsilon=default_epsilon)
 
     with napari.gui_qt():
         viewer = napari.view_image(image)
@@ -75,13 +75,25 @@ def main(args):
             layer.remove_selected()
 
         @magicgui(auto_call=True,
-                  sigma={'widget_type': QDoubleSpinBox, 'maximum': 255, 'minimum': 0.01, 'singleStep': 5.0})
-        def update_sigma(sigma: float = default_sigma):
-            grabber.sigma = sigma
-
-        sigma_box = update_sigma.Gui()
-        viewer.window.add_dock_widget(sigma_box, area='left')
-        viewer.layers.events.changed.connect(lambda x: sigma_box.refresh_choices())
+                  call_button='Automatic',
+                  layout='vertical',
+                  sigma={'widget_type': QDoubleSpinBox, 'maximum': 255, 'minimum': 0.01, 'singleStep': 5.0},
+                  eps={'widget_type': QDoubleSpinBox, 'maximum': 500, 'minimum': 1, 'singleStep': 5})
+        def update_params(sigma: float = default_sigma, eps: float = default_epsilon):
+            if grabber.sigma != sigma:
+                grabber.sigma = sigma
+            elif eps != grabber.epsilon:
+                grabber.epsilon = eps
+                points.data = np.array([p.coords for p in grabber.paths])
+            else:
+                grabber.optimum_contour()
+                label.data = grabber.contour
+                grabber.recompute_anchors()
+                points.data = np.array([p.coords for p in grabber.paths])
+                
+        params_box = update_params.Gui()
+        viewer.window.add_dock_widget(params_box, area='left')
+        viewer.layers.events.changed.connect(lambda x: params_box.refresh_choices())
 
 
 if __name__ == '__main__':

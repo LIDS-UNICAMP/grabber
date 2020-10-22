@@ -18,17 +18,38 @@ class Grabber(LiveWire):
 
     def __init__(self, image: np.ndarray, mask: np.ndarray, arc_fun: str = 'exp', epsilon: float = 100,
                  saliency: Optional[np.ndarray] = None, **kwargs):
-        """
-        TODO
+        """Grabber algorithm
+
+        Parameters
+        ----------
+        image: array_like
+            2D Image.
+        mask: array_like
+            Foreground mask.
+        arc_fun: {'exp'}, default='exp'
+            Optimum-path arc-weight function, check Live-Wire documentation.
+        epsilon: float
+            Contour simplification parameter.
+        saliency: array_like
+            Object saliency array, must have the same dimensions as `mask` and `image`.
         """
         super().__init__(image, arc_fun, saliency, **kwargs)
-        self.epsilon = epsilon
-        self.paths = self._process_mask(mask)
+        self._epsilon = epsilon
+        self.paths = self._load_paths(mask)
         self.middle = None
         self.next = None
         self.previous = None
 
-    def _process_mask(self, mask: np.ndarray) -> List[Path]:
+    @property
+    def epsilon(self):
+        return self._epsilon
+
+    @epsilon.setter
+    def epsilon(self, value):
+        self._epsilon = value
+        self.paths = self._load_paths()
+
+    def _load_paths(self, mask: Optional[np.ndarray] = None) -> List[Path]:
         """
         Parameters
         ----------
@@ -40,11 +61,15 @@ class Grabber(LiveWire):
         List
             List with pairs of anchors coordinates and path sorted by their ordering.
         """
+        if mask is None:
+            mask = self.contour.astype(np.uint8)
+
         assert mask.dtype == np.uint8
         mask = np.swapaxes(mask, axis1=0, axis2=1)
 
         ctr, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        approx = cv2.approxPolyDP(ctr[-1], self.epsilon, closed=True)
+
+        approx = cv2.approxPolyDP(ctr[-1], self._epsilon, closed=True)
 
         ctr = np.squeeze(np.array(ctr[-1]), axis=1)
         approx = np.squeeze(np.array(approx), axis=1)
@@ -145,6 +170,16 @@ class Grabber(LiveWire):
         self.labels.flat[path] = True
 
     def _opt_path(self, src: Tuple[int, int], dst: Tuple[int, int]) -> Optional[np.ndarray]:
+        """
+        Resets destiny node and compute optimum path.
+
+        Parameters
+        ----------
+        src: Tuple[int, int]
+            Source node coordinates (y, x).
+        dst: Tuple[int, int]
+            Destiny node coordinates (y, x).
+        """
         src = self._to_index(*src)
         dst = self._to_index(*dst)
         self.costs.flat[dst] = np.finfo('d').max
@@ -244,3 +279,48 @@ class Grabber(LiveWire):
         self.paths.pop(index)
 
         previous.path = self._opt_path(previous.coords, next.coords)
+
+    def optimum_contour(self) -> None:
+        """
+        Computes the optimum contour between every anchor.
+        """
+        for i, current in enumerate(self.paths):
+            next = self.paths[(i + 1) % len(self.paths)]
+            self._reset(current.path)
+            current.path = self._opt_path(current.coords, next.coords)
+
+    def recompute_anchors(self, step: int = 4) -> None:
+        """
+        Automatic updates anchors position, moving up to `step` pixels.
+        This is not discussed in the original article and was not tested.
+
+        Parameters
+        ----------
+        step: int
+            Range to recompute anchor.
+
+        FIXME:
+            The way live-wire is implemented the `costs` values are always zero to avoid 
+            crossing paths, therefore it is not adequate to move the anchors using it.
+            
+        """
+        new_paths = []
+        leftovers = []
+        for path in self.paths:
+            if len(path.path) <= step:
+                new_paths.append(path)
+                leftovers.append(np.zeros(0))
+                continue
+            min_idx = np.argmin(self.costs.flat[path.path[step:]] - \
+                    self.costs.flat[path.path[:-step]]) 
+
+            index = int(path.path[min_idx])
+            leftovers.append(path.path[:min_idx])
+            new_paths.append(Path((index // self.size[1], index % self.size[1]),
+                path.path[min_idx:]))
+
+        for i, path in enumerate(new_paths):
+            path.path = np.concatenate((path.path, leftovers[(i + 1) % len(leftovers)]))
+
+        self.paths = new_paths
+
