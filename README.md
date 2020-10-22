@@ -26,29 +26,24 @@ python demo/app.py <input image> <input mask>
 </p>
 
 <p align="center">
-  <figcaption>Anchor movement mode.</figcaption>
-  <img src="images/select_mode.png" alt="Select Mode" style="width:35%">
-</p>    
-
-<p align="center">
   <figcaption>Anchor addition mode.</figcaption>
   <img src="images/add_mode.png" alt="Add Mode" style="width:35%">
 </p>   
  
 <p align="center">
-  <figcaption>Anchor addition mode.</figcaption>
+  <figcaption>Parameters setup.</figcaption>
   <img src="images/sigma.png" alt="Sigma" style="width:50%">
 </p>   
 
 <p align="center">
-  <figcaption>Sigma adherence parameter.</figcaption>
-  <img src="images/removal.png" alt="Removal" style="width:35%">
+  <figcaption>Anchors removal with selection bounding box..</figcaption>
+  <img src="images/removal.png" alt="Removal" style="width:30%">
 </p>
 
 
 ## Citation
 
-If you find this work is useful for your research, please cite our paper:
+If this work was useful for your research, please cite our paper:
 
 ```
 @article{bragantini2020grabber,
