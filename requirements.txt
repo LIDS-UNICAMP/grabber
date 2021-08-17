@@ -1,4 +1,4 @@
 pyift>=0.0.1.dev4
 py-opencv>=4.4.0
-napari>=0.3.7
+napari~=0.3.7
 magicgui
