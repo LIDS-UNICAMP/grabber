@@ -185,7 +185,9 @@ class Grabber(LiveWire):
         self.costs.flat[dst] = np.finfo('d').max
         self.labels.flat[dst] = False
         self.preds.flat[dst] = -1
-        return super()._opt_path(src, dst)[::-1]
+        opt_path = super()._opt_path(src, dst)
+        # reversing path if computed
+        return None if opt_path is None else opt_path[::-1] 
 
     def drag(self, position: Tuple[int, int]) -> None:
         """
