@@ -1,4 +1,4 @@
-pyift>=0.0.1.dev4
-py-opencv>=4.4.0
-napari~=0.3.7
+pyift>=0.0.3dev1
+opencv-python>=4.4.0
+napari~=0.4.12  # use other versions of napari at your own risk
 magicgui
