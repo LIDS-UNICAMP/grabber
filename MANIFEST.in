@@ -4,3 +4,5 @@ include requirements.txt
 
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
+recursive-exclude * *.png
+recursive-exclude * *.gif

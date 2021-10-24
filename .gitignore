@@ -130,3 +130,7 @@ dmypy.json
 
 # IDE
 .idea/
+
+# setuptools_scm
+grabber/_version.py
+
