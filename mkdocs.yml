@@ -1,0 +1,9 @@
+site_name: grabber
+site_description: A tool for contour-based segmentation correction (2D only).
+site_author: Jordão Bragantini
+
+theme: readthedocs
+
+
+pages:
+- Home: index.md

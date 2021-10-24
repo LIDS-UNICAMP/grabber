@@ -326,3 +326,10 @@ class Grabber(LiveWire):
 
         self.paths = new_paths
 
+    @property
+    def mask(self) -> np.ndarray:
+        contour = self.contour.astype(np.uint8)
+        ctr, _ = cv2.findContours(contour, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        mask = np.zeros_like(contour)
+        cv2.drawContours(mask, ctr, -1, color=(1,), thickness=cv2.FILLED)
+        return mask.astype(bool)
