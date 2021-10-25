@@ -20,7 +20,7 @@ class GrabberWidget(Container):
         self._grabber: Optional[Grabber] = None
 
         self._contour_layer = self._viewer.add_labels(
-            np.empty((1,1), dtype=int), color={1: 'cyan'}, name='Contour', opacity=1.0
+            np.zeros((1,1), dtype=int), color={1: 'cyan'}, name='Contour', opacity=1.0
         )
         self._anchors_layer = self._create_anchors()
 
@@ -53,6 +53,7 @@ class GrabberWidget(Container):
                 tooltip='Lower values makes contour adheres more to the image (and noise) boundaries.'
             )
         )
+        self._sigma.changed.connect(self._update_sigma)
         self.append(self._sigma)
 
         self._epsilon = create_widget(
@@ -61,6 +62,7 @@ class GrabberWidget(Container):
                          tooltip='Smaller values generates more anchor points.'
             )
         )
+        self._epsilon.changed.connect(self._update_epsilon)
         self.append(self._epsilon)
 
         self._confirm_button = PushButton(text='Confirm', enabled=False)
@@ -183,6 +185,7 @@ class GrabberWidget(Container):
         self._reset_anchors()
         self._contour_layer.data = self._grabber.contour
         self._confirm_button.enabled = True
+        self._viewer.layers.selection = [self._anchors_layer]
     
     def _on_confirm(self) -> None:
         mask = self._grabber.mask
