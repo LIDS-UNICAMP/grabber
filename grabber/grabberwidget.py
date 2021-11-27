@@ -113,7 +113,7 @@ class GrabberWidget(Container):
             # mouse move
             while event.type == 'mouse_move' and len(anchors.selected_data) == 1:
                 coords = round(anchors.position[-2]), round(anchors.position[-1])
-                if anchors.is_valid(coords, on_contour=False):
+                if anchors.is_valid(coords) and not anchors.is_on_contour(coords):
                     self._grabber.drag(coords)
                     self._contour_layer.data = self._grabber.contour
 
