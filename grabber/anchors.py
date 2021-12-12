@@ -1,10 +1,17 @@
 from typing import Tuple
-import cv2
 import numpy as np
 from napari.layers.points import Points
+from napari.utils.events import Event
 from scipy.spatial import distance
 
+
 class Anchors(Points):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.events.add(
+            contour=Event,
+        )
+
     def add(self, coord: Tuple[int, int]) -> None:
         coord = round(coord[0]), round(coord[1])
         grabber = self.metadata['grabber']
@@ -13,6 +20,17 @@ class Anchors(Points):
             coord = self.closest_contour_point(coord)
             index = grabber.add(coord)
             self.data = np.insert(self.data, index, np.atleast_2d(coord), axis=0)
+
+    def remove_selected(self) -> None:
+        if 'grabber' in self.metadata:
+            grabber = self.metadata['grabber']
+            for i in sorted(list(self.selected_data), reverse=True):
+                pt = grabber.paths[i].coords
+                grabber.remove(pt)
+
+            self.events.contour()
+
+        super().remove_selected()
 
     def is_valid(self, coord: Tuple[int, int]) -> bool:
         grabber = self.metadata['grabber']
