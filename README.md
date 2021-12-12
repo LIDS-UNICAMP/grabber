@@ -28,9 +28,9 @@ https://napari.org/docs/plugins/index.html
 
 ## Installation
 
-You can install `grabber` via [pip]:
+You can install `grabber-ift` via [pip]:
 
-    pip install grabber
+    pip install grabber-ift
 
 
 ## Known Limitations
