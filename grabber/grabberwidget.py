@@ -25,7 +25,6 @@ class GrabberWidget(Container):
         self._anchors_layer = self._create_anchors()
 
         self._image_layer = create_widget(annotation=Image, label='Image')
-        self._image_layer.changed.connect(lambda _: setattr(self._load_button, 'enabled', self._validate_load()))
         self.append(self._image_layer)
         
         self._labels_layer = create_widget(annotation=Labels, label='Labels')
@@ -79,25 +78,15 @@ class GrabberWidget(Container):
         )
         anchors.mode = 'select'
         anchors.metadata['grabber'] = self._grabber
+        anchors.mouse_drag_callbacks.append(self._mouse_drag)
+        anchors.events.contour.connect(self._on_contour_update)
 
         self._viewer.add_layer(anchors)
-
-        anchors.bind_key('Backspace', self._remove_selected)
-        anchors.bind_key('Delete', self._remove_selected)
-        anchors.mouse_drag_callbacks.append(self._mouse_drag)
        
         return anchors
-
-    def _remove_selected(self, anchors: Anchors) -> None:
-        if self._grabber is None:
-            return
-
-        for i in sorted(list(anchors.selected_data), reverse=True):
-            pt = self._grabber.paths[i].coords
-            self._grabber.remove(pt)
-
+    
+    def _on_contour_update(self, event=None) -> None:
         self._contour_layer.data = self._grabber.contour
-        anchors.remove_selected()
 
     def _mouse_drag(self, anchors: Anchors, event) -> None:
         if self._grabber is None:
@@ -159,6 +148,10 @@ class GrabberWidget(Container):
                 self._labels_layer.value is not None)
 
     def _on_load(self) -> None:
+        if self._labels_layer.value == self._contour_layer:
+            warnings.warn('Input `Labels` cannot be `Contour.')
+            return
+
         mask = self._create_mask()
         if mask is None:
             return
