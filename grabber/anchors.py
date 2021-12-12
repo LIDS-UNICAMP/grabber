@@ -3,6 +3,7 @@ import numpy as np
 from napari.layers.points import Points
 from napari.utils.events import Event
 from scipy.spatial import distance
+import warnings
 
 
 class Anchors(Points):
@@ -25,6 +26,10 @@ class Anchors(Points):
         if 'grabber' in self.metadata:
             grabber = self.metadata['grabber']
             for i in sorted(list(self.selected_data), reverse=True):
+                if len(grabber.paths) <= 2:
+                    warnings.warn('Number of anchors cannot be less than 2.')
+                    break
+
                 pt = grabber.paths[i].coords
                 grabber.remove(pt)
 

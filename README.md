@@ -12,9 +12,7 @@ This repository provides a demo code of the paper:
 > **Grabber: A Tool to Improve Convergence in Interactive Image Segmentation**
 > [Jordão Bragantini](https://jookuma.github.io/), Bruno Moura, [Alexandre X. Falcão](http://lids.ic.unicamp.br/), [Fábio A. M. Cappabianco](https://scholar.google.com/citations?user=qmH9VEEAAAAJ&hl=en&oi=ao)
 
-<p align="center">
-  <img src="./images/demo.gif" alt="grabber demo" width="80%"/>
-</p>
+https://github.com/LIDS-UNICAMP/grabber/tree/master/docs/demo.mp4
 
 ----------------------------------
 
