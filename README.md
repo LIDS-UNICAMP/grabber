@@ -12,7 +12,7 @@ This repository provides a demo code of the paper:
 > **Grabber: A Tool to Improve Convergence in Interactive Image Segmentation**
 > [Jordão Bragantini](https://jookuma.github.io/), Bruno Moura, [Alexandre X. Falcão](http://lids.ic.unicamp.br/), [Fábio A. M. Cappabianco](https://scholar.google.com/citations?user=qmH9VEEAAAAJ&hl=en&oi=ao)
 
-https://github.com/LIDS-UNICAMP/grabber/tree/master/docs/demo.mp4
+https://user-images.githubusercontent.com/21022743/145699960-57da06a5-668f-4e81-82b5-7f3d3ddf8ee3.mp4
 
 ----------------------------------
 
@@ -37,7 +37,6 @@ You can install `grabber` via [pip]:
 
 This implementation doesn't support the items below, feel free to open a PR to add them.
 
-- The contour tracking doesn't adhere to image boundaries.
 - It only support 2D image, supporting 3D images isn't trivial, but it could be applied per slice with minor changes.
 
 ## Citation
