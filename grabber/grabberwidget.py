@@ -28,6 +28,7 @@ class GrabberWidget(Container):
         self.append(self._image_layer)
         
         self._labels_layer = create_widget(annotation=Labels, label='Labels')
+        self._labels_layer.changed.connect(self._setup_labels_picking)
         self.append(self._labels_layer)
 
         self._label_selection = create_widget(1, label='Selected Label')
@@ -63,6 +64,9 @@ class GrabberWidget(Container):
         )
         self._epsilon.changed.connect(self._update_epsilon)
         self.append(self._epsilon)
+
+        self._auto_fill = create_widget(False, label='Auto Fill')
+        self.append(self._auto_fill)
 
         self._confirm_button = PushButton(text='Confirm', enabled=False)
         self._confirm_button.changed.connect(self._on_confirm)
@@ -110,6 +114,9 @@ class GrabberWidget(Container):
             # mouse release
             self._grabber.confirm()
             anchors.selected_data = set()
+
+            if self._auto_fill.value:
+                self._on_confirm()
     
     def _update_sigma(self, value: float) -> None:
         if self._grabber is None:
@@ -200,3 +207,11 @@ class GrabberWidget(Container):
                 min_dist = dist
                 nearest = p.coords
         return nearest, np.sqrt(min_dist)
+
+    def _setup_labels_picking(self, layer: Optional[Labels]) -> None:
+        if layer is None:
+            return
+
+        layer.events.selected_label.connect(
+            lambda _: setattr(self._label_selection, 'value', layer.selected_label)
+        )
